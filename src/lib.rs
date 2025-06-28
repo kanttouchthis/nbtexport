@@ -3,38 +3,8 @@ use crab_nbt::{Nbt, NbtCompound, NbtTag};
 use pyo3::prelude::*;
 use rayon::prelude::*;
 use std::collections::HashMap;
-use std::fs::read_to_string;
 use std::time::{SystemTime, UNIX_EPOCH};
 mod gzip;
-
-fn parse_key(key: &str) -> Option<(i32, i32, i32)> {
-    // Expect a key like "(0, 6, 23)"
-    let trimmed = key.trim_matches(|c| c == '(' || c == ')');
-    let parts: Vec<&str> = trimmed.split(',').map(|s| s.trim()).collect();
-
-    if parts.len() == 3 {
-        let x = parts[0].parse().ok()?;
-        let y = parts[1].parse().ok()?;
-        let z = parts[2].parse().ok()?;
-        Some((x, y, z))
-    } else {
-        None
-    }
-}
-
-pub fn load_json(path: &str) -> HashMap<(i32, i32, i32), String> {
-    let data = read_to_string(path).unwrap();
-    let raw_map: HashMap<String, String> = serde_json::from_str(&data).unwrap();
-
-    let mut result = HashMap::new();
-
-    for (key, value) in raw_map {
-        if let Some(tuple_key) = parse_key(&key) {
-            result.insert(tuple_key, value);
-        }
-    }
-    result
-}
 
 fn get_block(x: i32, y: i32, z: i32, state: i32) -> NbtTag {
     return NbtTag::from(NbtCompound::from_iter([
