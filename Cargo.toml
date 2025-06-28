@@ -1,0 +1,15 @@
+[package]
+name = "nbtexport"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name= "nbtexport"
+crate-type = ["cdylib"]
+
+[dependencies]
+bytes = "1.10.1"
+crab_nbt = { version = "0.2.11", features = ["serde", "full"] }
+pyo3 = { version = "0.25.1", features = ["extension-module"] }
+serde = "1.0.219"
+serde_json = "1.0.140"
