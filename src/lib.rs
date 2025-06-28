@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::fs::{File, read_to_string, rename};
 use std::io::Write;
 use std::process::Command;
+use rayon::prelude::*;
 
 fn parse_key(key: &str) -> Option<(i32, i32, i32)> {
     // Expect a key like "(0, 6, 23)"
@@ -136,22 +137,23 @@ pub fn to_structure(blocks_dict: HashMap<(i32, i32, i32), String>) -> Nbt {
         }
     }
 
-    let mut blocks: Vec<NbtTag> = Vec::new();
-    let mut palette_id: i32;
-    let mut block_name: &str;
-    for x in 0..width {
-        for y in 0..height {
-            for z in 0..length {
-                if blocks_dict.contains_key(&(x, y, z)) {
-                    block_name = blocks_dict.get(&(x, y, z)).unwrap();
-                    palette_id = *palette_map.get(block_name).unwrap();
-                } else {
-                    palette_id = 0;
+    let blocks: Vec<NbtTag> = (0..width).into_par_iter()
+        .flat_map_iter(|x| {
+            let mut local_blocks = Vec::with_capacity((height * length) as usize); // preallocate
+            for y in 0..height {
+                for z in 0..length {
+                    let palette_id = if let Some(block_name) = blocks_dict.get(&(x, y, z)) {
+                        *palette_map.get(block_name).unwrap_or(&0)
+                    } else {
+                        0
+                    };
+                    local_blocks.push(get_block(x, y, z, palette_id));
                 }
-                blocks.push(get_block(x, y, z, palette_id));
             }
-        }
-    }
+            local_blocks
+        })
+        .collect();
+
     let mut inner = NbtCompound::new();
     inner.put("blocks".to_owned(), blocks);
     inner.put("entities".to_owned(), NbtTag::List(vec![]));
