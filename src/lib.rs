@@ -1,11 +1,11 @@
 use bytes::Bytes;
 use crab_nbt::{Nbt, NbtCompound, NbtTag};
 use pyo3::prelude::*;
-use std::collections::HashMap;
-use std::fs::{File, read_to_string, rename};
-use std::io::Write;
-use std::process::Command;
 use rayon::prelude::*;
+use std::collections::HashMap;
+use std::fs::read_to_string;
+use std::time::{SystemTime, UNIX_EPOCH};
+mod gzip;
 
 fn parse_key(key: &str) -> Option<(i32, i32, i32)> {
     // Expect a key like "(0, 6, 23)"
@@ -137,7 +137,8 @@ pub fn to_structure(blocks_dict: HashMap<(i32, i32, i32), String>) -> Nbt {
         }
     }
 
-    let blocks: Vec<NbtTag> = (0..width).into_par_iter()
+    let blocks: Vec<NbtTag> = (0..width)
+        .into_par_iter()
         .flat_map_iter(|x| {
             let mut local_blocks = Vec::with_capacity((height * length) as usize); // preallocate
             for y in 0..height {
@@ -173,18 +174,11 @@ pub fn to_structure(blocks_dict: HashMap<(i32, i32, i32), String>) -> Nbt {
 
 pub fn save_nbt(nbt: Nbt, filename: &str) {
     let buf = nbt.write();
-    let mut file = File::create(filename).unwrap();
-    file.write_all(&buf).unwrap();
-    file.flush().unwrap();
-
-    let mut cmd = Command::new("gzip")
-        .arg(filename)
-        .arg("-k")
-        .spawn()
-        .unwrap();
-
-    cmd.wait().unwrap();
-    rename(filename.to_owned() + ".gz", filename).unwrap();
+    let mtime = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    gzip::write_gzip_file(filename, mtime as u32, &buf).unwrap();
 }
 
 fn to_file(blocks_dict: HashMap<(i32, i32, i32), String>, filename: &str, mode: &str) {
